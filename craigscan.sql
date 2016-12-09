@@ -1,5 +1,5 @@
 CREATE TABLE craigScan_list (
-`id` INT NOT NULL PRIMARY KEY,
+`id` BIGINT NOT NULL PRIMARY KEY,
 search_term varchar(100) not null,
 email_address varchar(100) not null,
 title varchar(2000) not null,

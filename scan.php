@@ -69,20 +69,13 @@ function generate_email_body($craigResults){
 
     foreach($craigResults as $line){
 		$message .= "<tr>";
-		$count = 0;
-		foreach ($line as $col_value) {
-			if($count==1){//link image
-				$message .= "<td><img src='$col_value' style='width:100px;height:100px;'></td><td>";
-			}
-			else if($count==4){//link listingURL
-				$message .= "<br/><a href='$col_value'>LINK</a>";
-			}
-			else{
-				$message .= "$col_value<br/>";				
-			}
-			$count++;
-		}
-		$message .= "</td>";
+		//link image
+		$message .= "<td><img src='" . $line['img_url'] . "' style='width:100px;height:100px;'></td><td>";
+		//link listingURL
+		$message .= "<br/><a href='" . $line['url'] . "'>LINK</a><br/><br/>";
+		//description
+		$message .= "" . $line['description'] . "<br/></td>";	
+
 		$message .= "</tr>";
 	}
 	$message .= "</table>";

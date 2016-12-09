@@ -10,9 +10,9 @@ function craig_scan($searchTerms, $blacklisted_terms, $timeframe){
 		date_default_timezone_set("America/New_York");
 		echo "Running craigscan at " . date("Y-m-d h:i:sa") . "\n";
 
-
-			foreach($searchTerms as $term){
-				$URL = str_replace ("#TERM#", $term, $global_URL);
+        foreach($searchTerms as $user_email => $terms){
+			foreach($terms as $term){
+				$URL = str_replace ("#TERM#", urlencode($term), $global_URL);
 				// Create DOM from URL or file
 				$html = file_get_html($URL);
 
@@ -26,10 +26,16 @@ function craig_scan($searchTerms, $blacklisted_terms, $timeframe){
 						$listingTitle = mysql_real_escape_string((string) simplexml_load_string("<x>$encodedTitle</x>"));
 
 						//get img URL
-						$imgURL = mysql_real_escape_string($item->find('enc:enclosure',0)->resource);						
+						if(isset($item->find('enc:enclosure',0)->resource)){
+							$imgURL = mysql_real_escape_string($item->find('enc:enclosure',0)->resource);
+						}
+						else{
+							$imgURL = null;
+						}
+												
 
 						//get listing URL
-						$listingURL = mysql_real_escape_string($item->find('link',0)->innertext);
+						$listingURL = mysql_real_escape_string($item->find('dc:source',0)->innertext);
 
 						//get listing ID
 						$parsedURL = explode('/', str_replace('.html', "", $listingURL));
@@ -39,23 +45,25 @@ function craig_scan($searchTerms, $blacklisted_terms, $timeframe){
 						$encodedContent = $item->find('description',0)->innertext;					
 						$listingDescription = mysql_real_escape_string((string) simplexml_load_string("<x>$encodedContent</x>"));
 
+
 						//check for blacklisted term inside the description:
-						if(check_blacklist($listingDescription, $blacklisted_terms)){						
+						if(check_blacklist($listingDescription, $blacklisted_terms, $user_email)){						
 							//add to database if its new!
-							else if(!check_craigs($listingID)){
+							if(!check_craigs($listingID)){
 								echo "inserting ListingID: " . $listingID . "\n";
-								$query = "INSERT INTO craigScan_list (id, search_term, title, img_url, description, url) values ($listingID, '$term', '$listingTitle', '$imgURL', '$listingDescription', '$listingURL')";
-								$result = mysql_query($query) or die('Query failed: ' . mysql_error());
+								$query = "INSERT INTO craigScan_list (id, email_address, search_term, title, img_url, description, url) values ($listingID, '$user_email', '$term', '$listingTitle', '$imgURL', '$listingDescription', '$listingURL')";
+								$result = mysql_query($query) or die('Insert Query failed: ' . mysql_error());
 							}
 							else if(check_craigs_update($listingID, $listingDescription)){//already exists, but was it updated?
 								echo "updating ListingID: " . $listingID . "\n";
 								$query = "UPDATE craigScan_list set description =  '$listingDescription', title = '$title' where id = $listingID";
-								$result = mysql_query($query) or die('Query failed: ' . mysql_error());
+								$result = mysql_query($query) or die('Update Query failed: ' . mysql_error());
 							}
 						}
 					}
 				}
 			}
+		}
 
 		//query to see if there are any updates
 		$query = "SELECT email_address, img_url, category, title, description, url FROM craigScan_list WHERE last_update >= DATE_SUB(NOW(),INTERVAL $timeframe HOUR)";
@@ -70,19 +78,22 @@ function craig_scan($searchTerms, $blacklisted_terms, $timeframe){
 		return extract_email_convert_to_array($results);
 }
 
-function check_blacklist($description, $blacklisted_terms){
-	foreach($blacklisted_terms as $bl_term){
-		if(strpos($description, $bl_term)){
-			return false;
+function check_blacklist($description, $blacklisted_terms, $user_email){
+	if (isset($blacklisted_terms[$user_email])){
+		foreach($blacklisted_terms[$user_email] as $bl_term){
+				if(strpos($description, $bl_term)){
+					return false;
+				}
 		}
 	}
+	
 	return true;
 }
 
 function extract_email_convert_to_array($results){
-	$emailArray = new array();
+	$emailArray = array();
 	foreach($results as $result){
-		$emailArray[$result[0]][] = $result;
+		$emailArray[$result['email_address']][] = $result;
 	}
 	return $emailArray;
 }
