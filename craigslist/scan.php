@@ -1,14 +1,14 @@
 <?PHP
 
-function craig_scan($searchTerms, $timeframe){
+function craig_scan($searchTerms, $blacklisted_terms, $timeframe){
 		$global_URL = "https://louisville.craigslist.org/search/sss?format=rss&query=#TERM#&sort=rel";
 
 		$link = mysql_connect('localhost', 'root', '')
 		or die('Could not connect: ' . mysql_error());
-		mysql_select_db('hamscan') or die('Could not select database');
+		mysql_select_db('craigscan') or die('Could not select database');
 
 		date_default_timezone_set("America/New_York");
-		echo "Running qrz hamScan at " . date("Y-m-d h:i:sa") . "\n";
+		echo "Running craigscan at " . date("Y-m-d h:i:sa") . "\n";
 
 
 			foreach($searchTerms as $term){
@@ -39,16 +39,19 @@ function craig_scan($searchTerms, $timeframe){
 						$encodedContent = $item->find('description',0)->innertext;					
 						$listingDescription = mysql_real_escape_string((string) simplexml_load_string("<x>$encodedContent</x>"));
 
-						//add to database if its new!
-						if(!check_craigs($listingID)){
-							echo "inserting ListingID: " . $listingID . "\n";
-							$query = "INSERT INTO craigScan_list (id, search_term, title, img_url, description, url) values ($listingID, '$term', '$listingTitle', '$imgURL', '$listingDescription', '$listingURL')";
-							$result = mysql_query($query) or die('Query failed: ' . mysql_error());
-						}
-						else if(check_craigs_update($listingID, $listingDescription)){//already exists, but was it updated?
-							echo "updating ListingID: " . $listingID . "\n";
-							$query = "UPDATE craigScan_list set description =  '$listingDescription', title = '$title' where id = $listingID";
-							$result = mysql_query($query) or die('Query failed: ' . mysql_error());
+						//check for blacklisted term inside the description:
+						if(check_blacklist($listingDescription, $blacklisted_terms)){						
+							//add to database if its new!
+							else if(!check_craigs($listingID)){
+								echo "inserting ListingID: " . $listingID . "\n";
+								$query = "INSERT INTO craigScan_list (id, search_term, title, img_url, description, url) values ($listingID, '$term', '$listingTitle', '$imgURL', '$listingDescription', '$listingURL')";
+								$result = mysql_query($query) or die('Query failed: ' . mysql_error());
+							}
+							else if(check_craigs_update($listingID, $listingDescription)){//already exists, but was it updated?
+								echo "updating ListingID: " . $listingID . "\n";
+								$query = "UPDATE craigScan_list set description =  '$listingDescription', title = '$title' where id = $listingID";
+								$result = mysql_query($query) or die('Query failed: ' . mysql_error());
+							}
 						}
 					}
 				}
@@ -65,6 +68,15 @@ function craig_scan($searchTerms, $timeframe){
 		}
 
 		return extract_email_convert_to_array($results);
+}
+
+function check_blacklist($description, $blacklisted_terms){
+	foreach($blacklisted_terms as $bl_term){
+		if(strpos($description, $bl_term)){
+			return false;
+		}
+	}
+	return true;
 }
 
 function extract_email_convert_to_array($results){
