@@ -48,7 +48,7 @@ function send_email($craigResults){
 	foreach($craigResults as $email => $result){
 		$to = $email;
 
-	$subject = 'HamScan Results!';
+	$subject = 'Craigslist Scan Results!';
 
 	$headers = "From: noreply@craigslistings.com" . "\r\n";
 	$headers .= "MIME-Version: 1.0\r\n";
