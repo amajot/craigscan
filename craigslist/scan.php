@@ -18,7 +18,7 @@ function craig_scan($searchTerms, $blacklisted_terms, $timeframe){
 	$local_craig_areas[] = "eastky";
 
 
-		$global_URL = "https://#CRAIG_AREA#.craigslist.org/search/sss?format=rss&query=#TERM#&sort=rel";
+		$global_URL = "https://#CRAIG_AREA#.craigslist.org/search/sss?format=rss&query=#TERM#&sort=date";
 
 		$link = mysql_connect('localhost', 'root', '')
 		or die('Could not connect: ' . mysql_error());
