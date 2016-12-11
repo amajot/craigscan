@@ -1,7 +1,24 @@
 <?PHP
 
+
 function craig_scan($searchTerms, $blacklisted_terms, $timeframe){
-		$global_URL = "https://louisville.craigslist.org/search/sss?format=rss&query=#TERM#&sort=rel";
+
+	$local_craig_areas = array();
+	$local_craig_areas[] = "louisville";
+	$local_craig_areas[] = "evansville";
+	$local_craig_areas[] = "bloomington";
+	$local_craig_areas[] = "cincinnati";
+	$local_craig_areas[] = "indianapolis";
+	$local_craig_areas[] = "terrehaute";
+	$local_craig_areas[] = "evansville";
+	$local_craig_areas[] = "owensboro";
+	$local_craig_areas[] = "lexington";
+	$local_craig_areas[] = "bgky";
+	$local_craig_areas[] = "westky";
+	$local_craig_areas[] = "eastky";
+
+
+		$global_URL = "https://#CRAIG_AREA#.craigslist.org/search/sss?format=rss&query=#TERM#&sort=rel";
 
 		$link = mysql_connect('localhost', 'root', '')
 		or die('Could not connect: ' . mysql_error());
@@ -10,60 +27,66 @@ function craig_scan($searchTerms, $blacklisted_terms, $timeframe){
 		date_default_timezone_set("America/New_York");
 		echo "Running craigscan at " . date("Y-m-d h:i:sa") . "\n";
 
-        foreach($searchTerms as $user_email => $terms){
-			foreach($terms as $term){
-				$URL = str_replace ("#TERM#", urlencode($term), $global_URL);
-				// Create DOM from URL or file
-				$html = file_get_html($URL);
+		foreach($local_craig_areas as $area){ //checking all local craigs
+			$craig_URL = str_replace ("#CRAIG_AREA#", urlencode($area), $global_URL);
 
-				//get list of items
-				foreach($html->find('item') as $item) {
+			foreach($searchTerms as $user_email => $terms){
+				foreach($terms as $term){
+					$URL = str_replace ("#TERM#", urlencode($term), $craig_URL);
+					// Create DOM from URL or file
+					$html = file_get_html($URL);
 
-					//checking search term against item
-					if(search_craigs($term, $item)){
-						//get listing title
-						$encodedTitle = $item->find('title',0)->innertext;	
-						$listingTitle = mysql_real_escape_string((string) simplexml_load_string("<x>$encodedTitle</x>"));
+					//get list of items
+					foreach($html->find('item') as $item) {
 
-						//get img URL
-						if(isset($item->find('enc:enclosure',0)->resource)){
-							$imgURL = mysql_real_escape_string($item->find('enc:enclosure',0)->resource);
-						}
-						else{
-							$imgURL = null;
-						}
-												
+						//checking search term against item
+						if(search_craigs($term, $item)){
+							//get listing title
+							$encodedTitle = $item->find('title',0)->innertext;	
+							$listingTitle = mysql_real_escape_string((string) simplexml_load_string("<x>$encodedTitle</x>"));
 
-						//get listing URL
-						$listingURL = mysql_real_escape_string($item->find('dc:source',0)->innertext);
-
-						//get listing ID
-						$parsedURL = explode('/', str_replace('.html', "", $listingURL));
-						$listingID = mysql_real_escape_string($parsedURL[count($parsedURL)-1]);
-
-						//get description
-						$encodedContent = $item->find('description',0)->innertext;					
-						$listingDescription = mysql_real_escape_string((string) simplexml_load_string("<x>$encodedContent</x>"));
-
-
-						//check for blacklisted term inside the description:
-						if(check_blacklist($listingDescription, $blacklisted_terms, $user_email)){						
-							//add to database if its new!
-							if(!check_craigs($listingID)){
-								echo "inserting ListingID: " . $listingID . "\n";
-								$query = "INSERT INTO craigScan_list (id, email_address, search_term, title, img_url, description, url) values ($listingID, '$user_email', '$term', '$listingTitle', '$imgURL', '$listingDescription', '$listingURL')";
-								$result = mysql_query($query) or die('Insert Query failed: ' . mysql_error());
+							//get img URL
+							if(isset($item->find('enc:enclosure',0)->resource)){
+								$imgURL = mysql_real_escape_string($item->find('enc:enclosure',0)->resource);
 							}
-							else if(check_craigs_update($listingID, $listingDescription)){//already exists, but was it updated?
-								echo "updating ListingID: " . $listingID . "\n";
-								$query = "UPDATE craigScan_list set description =  '$listingDescription', title = '$title' where id = $listingID";
-								$result = mysql_query($query) or die('Update Query failed: ' . mysql_error());
+							else{
+								$imgURL = null;
+							}
+													
+
+							//get listing URL
+							$listingURL = mysql_real_escape_string($item->find('dc:source',0)->innertext);
+
+							//get listing ID
+							$parsedURL = explode('/', str_replace('.html', "", $listingURL));
+							$listingID = mysql_real_escape_string($parsedURL[count($parsedURL)-1]);
+
+							//get description
+							$encodedContent = $item->find('description',0)->innertext;					
+							$listingDescription = mysql_real_escape_string((string) simplexml_load_string("<x>$encodedContent</x>"));
+
+
+							//check for blacklisted term inside the description:
+							if(check_blacklist($listingDescription, $blacklisted_terms, $user_email)){						
+								//add to database if its new!
+								if(!check_craigs($listingID)){
+									echo "inserting ListingID: " . $listingID . "\n";
+									$query = "INSERT INTO craigScan_list (id, email_address, search_term, title, img_url, description, url) values ($listingID, '$user_email', '$term', '$listingTitle', '$imgURL', '$listingDescription', '$listingURL')";
+									$result = mysql_query($query) or die('Insert Query failed: ' . mysql_error());
+								}
+								else if(check_craigs_update($listingID, $listingDescription)){//already exists, but was it updated?
+									echo "updating ListingID: " . $listingID . "\n";
+									$query = "UPDATE craigScan_list set description =  '$listingDescription', title = '$title' where id = $listingID";
+									$result = mysql_query($query) or die('Update Query failed: ' . mysql_error());
+								}
 							}
 						}
 					}
 				}
 			}
 		}
+
+        
 
 		//query to see if there are any updates
 		$query = "SELECT email_address, img_url, category, title, description, url FROM craigScan_list WHERE last_update >= DATE_SUB(NOW(),INTERVAL $timeframe HOUR)";
