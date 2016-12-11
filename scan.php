@@ -72,7 +72,7 @@ function generate_email_body($craigResults){
 		//link image
 		$message .= "<td><img src='" . $line['img_url'] . "' style='width:100px;height:100px;'></td><td>";
 		//link listingURL
-		$message .= "<br/><a href='" . $line['url'] . "'>LINK</a><br/><br/>";
+		$message .= "<br/><a href='" . $line['url'] . "'>". $line['title'] ."</a><br/><br/>";
 		//description
 		$message .= "" . $line['description'] . "<br/></td>";	
 
