@@ -76,7 +76,7 @@ function craig_scan($searchTerms, $blacklisted_terms, $timeframe){
 								}
 								else if(check_craigs_update($listingID, $listingDescription)){//already exists, but was it updated?
 									echo "updating ListingID: " . $listingID . "\n";
-									$query = "UPDATE craigScan_list set description =  '$listingDescription', title = '$title' where id = $listingID";
+									$query = "UPDATE craigScan_list set description =  '$listingDescription', title = '$listingTitle' where id = $listingID";
 									$result = mysql_query($query) or die('Update Query failed: ' . mysql_error());
 								}
 							}
